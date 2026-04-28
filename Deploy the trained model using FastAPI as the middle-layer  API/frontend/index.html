@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Churn Prediction System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #fff;
+    }
+
+    .container {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.8rem;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #00d2ff, #7b2ff7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #aaa;
+      font-size: 0.9rem;
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 18px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #ccc;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #00d2ff;
+    }
+
+    select option { background: #1a1a2e; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(90deg, #00d2ff, #7b2ff7);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+      transition: opacity 0.3s, transform 0.1s;
+    }
+
+    button:hover { opacity: 0.9; transform: translateY(-1px); }
+    button:active { transform: translateY(0); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #result {
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .churn { background: rgba(255, 80, 80, 0.15); border: 1px solid rgba(255,80,80,0.4); }
+    .no-churn { background: rgba(80, 255, 160, 0.1); border: 1px solid rgba(80,255,160,0.4); }
+
+    .result-icon { font-size: 3rem; margin-bottom: 10px; }
+    .result-label { font-size: 1.4rem; font-weight: bold; margin-bottom: 15px; }
+    .churn .result-label { color: #ff6b6b; }
+    .no-churn .result-label { color: #69ffb4; }
+
+    .prob-bar-container { margin-top: 15px; }
+    .prob-label { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; margin-bottom: 5px; }
+    .prob-bar { height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden; }
+    .prob-fill { height: 100%; border-radius: 5px; transition: width 0.8s ease; }
+    .churn .prob-fill { background: linear-gradient(90deg, #ff6b6b, #ff3838); }
+    .no-churn .prob-fill { background: linear-gradient(90deg, #69ffb4, #00c471); }
+
+    .error-box {
+      margin-top: 15px;
+      padding: 12px;
+      background: rgba(255,80,80,0.15);
+      border: 1px solid rgba(255,80,80,0.3);
+      border-radius: 8px;
+      color: #ff9999;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .api-status {
+      text-align: center;
+      font-size: 0.8rem;
+      margin-bottom: 20px;
+    }
+
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+    .dot.green { background: #69ffb4; }
+    .dot.red { background: #ff6b6b; }
+    .dot.yellow { background: #ffd700; animation: pulse 1s infinite; }
+
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>🔮 Churn Predictor</h1>
+  <p class="subtitle">3-Tier ML System — Frontend Layer</p>
+
+  <div class="api-status" id="apiStatus">
+    <span class="dot yellow" id="statusDot"></span>
+    <span id="statusText">Checking API connection...</span>
+  </div>
+
+  <div class="form-group">
+    <label>Tenure (months as customer)</label>
+    <input type="number" id="tenure" placeholder="e.g. 12" min="0" max="72" value="5"/>
+  </div>
+
+  <div class="form-group">
+    <label>Monthly Charges ($)</label>
+    <input type="number" id="monthly_charges" placeholder="e.g. 65.50" step="0.01" value="95.50"/>
+  </div>
+
+  <div class="form-group">
+    <label>Total Charges ($)</label>
+    <input type="number" id="total_charges" placeholder="e.g. 786.00" step="0.01" value="477.50"/>
+  </div>
+
+  <div class="form-group">
+    <label>Has Internet Service?</label>
+    <select id="has_internet">
+      <option value="1">Yes</option>
+      <option value="0">No</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>Has Phone Service?</label>
+    <select id="has_phone">
+      <option value="1">Yes</option>
+      <option value="0">No</option>
+    </select>
+  </div>
+
+  <button id="predictBtn" onclick="predict()">🔍 Predict Churn</button>
+
+  <div class="error-box" id="errorBox"></div>
+
+  <div id="result">
+    <div class="result-icon" id="resultIcon"></div>
+    <div class="result-label" id="resultLabel"></div>
+    <div class="prob-bar-container">
+      <div class="prob-label">
+        <span>Churn Probability</span>
+        <span id="probText"></span>
+      </div>
+      <div class="prob-bar">
+        <div class="prob-fill" id="probFill" style="width: 0%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_URL = "http://localhost:8000";
+
+  // Check API health on load
+  async function checkHealth() {
+    const dot = document.getElementById("statusDot");
+    const text = document.getElementById("statusText");
+    try {
+      const res = await fetch(`${API_URL}/health`);
+      const data = await res.json();
+      dot.className = "dot green";
+      text.textContent = data.model_loaded ? "API Connected ✓ Model Ready" : "API Connected but model not loaded";
+    } catch {
+      dot.className = "dot red";
+      text.textContent = "API Offline — make sure Docker container is running";
+    }
+  }
+
+  async function predict() {
+    const btn = document.getElementById("predictBtn");
+    const errorBox = document.getElementById("errorBox");
+    const result = document.getElementById("result");
+
+    errorBox.style.display = "none";
+    result.style.display = "none";
+    btn.disabled = true;
+    btn.textContent = "⏳ Predicting...";
+
+    const payload = {
+      tenure: parseFloat(document.getElementById("tenure").value),
+      monthly_charges: parseFloat(document.getElementById("monthly_charges").value),
+      total_charges: parseFloat(document.getElementById("total_charges").value),
+      has_internet: parseInt(document.getElementById("has_internet").value),
+      has_phone: parseInt(document.getElementById("has_phone").value),
+    };
+
+    try {
+      const res = await fetch(`${API_URL}/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error(`HTTP error: ${res.status}`);
+      const data = await res.json();
+
+      // Display result
+      const isChurn = data.churn_prediction === 1;
+      result.className = isChurn ? "churn" : "no-churn";
+      document.getElementById("resultIcon").textContent = isChurn ? "⚠️" : "✅";
+      document.getElementById("resultLabel").textContent = data.churn_label;
+
+      const pct = Math.round(data.churn_probability * 100);
+      document.getElementById("probText").textContent = `${pct}%`;
+      document.getElementById("probFill").style.width = `${pct}%`;
+
+      result.style.display = "block";
+    } catch (err) {
+      errorBox.textContent = `❌ Error: ${err.message}. Is the API container running on port 8000?`;
+      errorBox.style.display = "block";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "🔍 Predict Churn";
+    }
+  }
+
+  checkHealth();
+  setInterval(checkHealth, 10000); // re-check every 10s
+</script>
+</body>
+</html>
